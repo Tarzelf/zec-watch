@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ZEC Flow — swap into Zcash</title>
+<meta name="description" content="Swap USDC, ETH, BTC, or SOL into ZEC. One quote, one send, no account. Powered by NEAR Intents."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0b0c0a; --bg2:#141510; --card:#181910; --line:#2a2c22;
+  --ink:#f3ecd8; --dim:#9a937c; --gold:#f4b728; --gold2:#c48a12;
+  --good:#7dcea0; --bad:#e07a5f; --warn:#e9c46a;
+}
+*{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Newsreader,Georgia,serif}
+body{min-height:100vh}
+a{color:var(--gold);text-decoration:none}
+.wrap{max-width:560px;margin:0 auto;padding:28px 18px 80px}
+header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px}
+.brand{font-size:22px;letter-spacing:.04em}
+.brand em{font-style:normal;color:var(--gold)}
+.meta{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--dim)}
+.lede{font-size:28px;line-height:1.2;margin:0 0 8px}
+.sub{color:var(--dim);margin:0 0 28px;font-size:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+label{display:block;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:14px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:12px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--ink);cursor:pointer}
+.chip.on{border-color:var(--gold);color:var(--gold);background:#f4b72814}
+input,select{width:100%;background:#0e0f0c;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:12px 12px;font-family:"IBM Plex Mono",monospace;font-size:14px}
+input:focus{outline:1px solid var(--gold)}
+.row{display:flex;gap:8px}
+.row>div{flex:1}
+.btn{width:100%;margin-top:18px;background:var(--gold);color:#1a1404;border:0;border-radius:12px;padding:14px;font-family:Newsreader,serif;font-size:18px;font-weight:600;cursor:pointer}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn2{background:transparent;border:1px solid var(--line);color:var(--ink);margin-top:8px}
+.quote{margin-top:16px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.7}
+.quote b{color:var(--gold);font-weight:600;font-size:18px;font-family:Newsreader,serif}
+.err{color:var(--bad);font-family:"IBM Plex Mono",monospace;font-size:12px;margin-top:10px}
+.ok{color:var(--good)}
+.dep{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.addr{word-break:break-all;background:#0e0f0c;border:1px dashed var(--gold2);padding:12px;border-radius:10px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+.qr{display:block;margin:14px auto;background:#fff;padding:8px;border-radius:8px}
+.note{font-size:13px;color:var(--dim);margin-top:22px;line-height:1.5}
+.gear{background:none;border:0;color:var(--dim);cursor:pointer;font-size:16px}
+.hidden{display:none}
+.status{font-family:"IBM Plex Mono",monospace;font-size:12px;margin-top:10px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">ZEC <em>Flow</em></div>
+    <div class="meta">0.20% fee · no account <button class="gear" id="gear" title="Fee settings">⚙</button></div>
+  </header>
+  <p class="lede">Any liquid asset in. ZEC out.</p>
+  <p class="sub">One quote. One send. Lands on a transparent Zcash address. Shield it after in your wallet.</p>
+
+  <div class="card">
+    <div id="settings" class="hidden">
+      <label>Your NEAR account (keeps half the 0.20%)</label>
+      <input id="feeNear" placeholder="you.near" autocomplete="off"/>
+      <p class="note" style="margin-top:8px">Listed fee is 20 bps. 1Click keeps 10. You keep 10 once this is a real .near account. Leave blank and the fee still exists — it just doesn’t pay you.</p>
+    </div>
+
+    <label>You pay with</label>
+    <div class="chips" id="chips"></div>
+
+    <div class="row">
+      <div>
+        <label>Amount</label>
+        <input id="amt" inputmode="decimal" placeholder="100" value="100"/>
+      </div>
+      <div>
+        <label>USD est.</label>
+        <input id="usd" disabled placeholder="—"/>
+      </div>
+    </div>
+
+    <label>ZEC receive address (t1 or t3)</label>
+    <input id="zec" placeholder="t1… or t3…" autocomplete="off" spellcheck="false"/>
+
+    <label>Refund address on the same chain as what you send</label>
+    <input id="refund" placeholder="Your USDC / ETH / BTC / SOL address" autocomplete="off" spellcheck="false"/>
+
+    <button class="btn" id="go">Get quote</button>
+    <div id="err" class="err hidden"></div>
+    <div id="box" class="quote hidden"></div>
+  </div>
+
+  <p class="note">
+    Powered by <a href="https://docs.near-intents.org/" target="_blank" rel="noreferrer">NEAR Intents</a>.
+    Destination is transparent — 1Click does not pay shielded zs/u addresses yet.
+    After it lands, shield in Zodl, Zashi, or YWallet.
+    Send the exact quoted amount. Wrong asset or network usually means a refund, not a loss, above ~$300.
+  </p>
+</div>
+<script>
+const API = "https://1click.chaindefuser.com";
+const ZEC = "nep141:zec.omft.near";
+const FEE_BPS = 20;
+const ASSETS = [
+  { id:"usdc-eth", label:"USDC · ETH", assetId:"nep141:eth-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.omft.near", dec:6, chain:"eth", kind:"evm" },
+  { id:"usdc-base", label:"USDC · Base", assetId:"nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near", dec:6, chain:"base", kind:"evm" },
+  { id:"usdc-arb", label:"USDC · Arb", assetId:"nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near", dec:6, chain:"arb", kind:"evm" },
+  { id:"usdc-sol", label:"USDC · SOL", assetId:"nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near", dec:6, chain:"sol", kind:"sol" },
+  { id:"usdt-eth", label:"USDT · ETH", assetId:"nep141:eth-0xdac17f958d2ee523a2206206994597c13d831ec7.omft.near", dec:6, chain:"eth", kind:"evm" },
+  { id:"eth", label:"ETH", assetId:"nep141:eth.omft.near", dec:18, chain:"eth", kind:"evm" },
+  { id:"btc", label:"BTC", assetId:"nep141:btc.omft.near", dec:8, chain:"btc", kind:"btc" },
+  { id:"sol", label:"SOL", assetId:"nep141:sol.omft.near", dec:9, chain:"sol", kind:"sol" }
+];
+let selected = ASSETS[0];
+let live = null;
+let poll = null;
+let prices = {};
+
+const $ = id => document.getElementById(id);
+const chips = $("chips");
+ASSETS.forEach(a => {
+  const b = document.createElement("button");
+  b.className = "chip" + (a===selected?" on":"");
+  b.textContent = a.label;
+  b.onclick = () => { selected = a; [...chips.children].forEach(c=>c.classList.remove("on")); b.classList.add("on"); est(); };
+  chips.appendChild(b);
+});
+$("feeNear").value = localStorage.getItem("zecflow.feeNear") || "";
+$("zec").value = localStorage.getItem("zecflow.zec") || "";
+$("refund").value = localStorage.getItem("zecflow.refund") || "";
+$("gear").onclick = () => $("settings").classList.toggle("hidden");
+$("feeNear").onchange = () => localStorage.setItem("zecflow.feeNear", $("feeNear").value.trim());
+$("zec").onchange = () => localStorage.setItem("zecflow.zec", $("zec").value.trim());
+$("refund").onchange = () => localStorage.setItem("zecflow.refund", $("refund").value.trim());
+$("amt").oninput = est;
+
+function showErr(m){ const e=$("err"); e.textContent=m; e.classList.toggle("hidden", !m); }
+function toUnits(n, dec){
+  const [w,f=""] = String(n).replace(/,/g,"").split(".");
+  const frac = (f + "0".repeat(dec)).slice(0,dec);
+  return (BigInt(w||"0") * (10n ** BigInt(dec)) + BigInt(frac||"0")).toString();
+}
+function looksZec(s){ return /^(t1|t3)[a-zA-Z0-9]{30,}$/.test(s); }
+function looksRefund(kind,s){
+  if(kind==="evm") return /^0x[a-fA-F0-9]{40}$/.test(s);
+  if(kind==="btc") return /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{24,}$/.test(s);
+  if(kind==="sol") return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+  return s.length>8;
+}
+function est(){
+  const n = parseFloat($("amt").value);
+  const p = prices[selected.assetId];
+  $("usd").value = (!n || !p) ? "—" : (n*p).toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:2});
+}
+async function loadTokens(){
+  try{
+    const t = await fetch(API+"/v0/tokens").then(r=>r.json());
+    t.forEach(x => { prices[x.assetId]=x.price; });
+    est();
+  }catch(e){}
+}
+loadTokens();
+
+$("go").onclick = quote;
+
+async function quote(){
+  showErr("");
+  $("box").classList.add("hidden");
+  const amt = $("amt").value.trim();
+  const zec = $("zec").value.trim();
+  const refund = $("refund").value.trim();
+  if(!parseFloat(amt) || parseFloat(amt)<=0) return showErr("Enter an amount.");
+  if(!looksZec(zec)) return showErr("Need a transparent ZEC address starting with t1 or t3.");
+  if(!looksRefund(selected.kind, refund)) return showErr("Refund address must match the chain you are paying from.");
+  $("go").disabled = true; $("go").textContent = "Asking solvers…";
+  const deadline = new Date(Date.now()+20*60*1000).toISOString();
+  const feeNear = $("feeNear").value.trim();
+  const body = {
+    dry: false,
+    swapType: "EXACT_INPUT",
+    slippageTolerance: 100,
+    originAsset: selected.assetId,
+    depositType: "ORIGIN_CHAIN",
+    destinationAsset: ZEC,
+    amount: toUnits(amt, selected.dec),
+    recipient: zec,
+    recipientType: "DESTINATION_CHAIN",
+    refundTo: refund,
+    refundType: "ORIGIN_CHAIN",
+    deadline,
+    appFees: feeNear ? [{ recipient: feeNear, fee: FEE_BPS }] : [{ recipient: "intents.near", fee: FEE_BPS }]
+  };
+  try{
+    const res = await fetch(API+"/v0/quote", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.message || ("Quote failed "+res.status));
+    live = data;
+    renderQuote(data);
+    startPoll(data.quote.depositAddress);
+  }catch(e){
+    showErr(e.message || String(e));
+  }finally{
+    $("go").disabled = false; $("go").textContent = "Get quote";
+  }
+}
+
+function renderQuote(data){
+  const q = data.quote;
+  const inAmt = q.amountInFormatted;
+  const outAmt = q.amountOutFormatted;
+  const minOut = (Number(q.minAmountOut)/1e8).toFixed(8);
+  const inUsd = Number(q.amountInUsd);
+  const outUsd = Number(q.amountOutUsd);
+  const allIn = ((1 - outUsd/inUsd)*100).toFixed(2);
+  const mins = Math.max(1, Math.round((q.timeEstimate||160)/60));
+  const dep = q.depositAddress;
+  const qr = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(dep);
+  $("box").classList.remove("hidden");
+  $("box").innerHTML = `
+    You send <b>${inAmt} ${selected.label}</b><br/>
+    You receive <b>${outAmt} ZEC</b> <span class="ok">min ${minOut}</span><br/>
+    ~$${outUsd.toFixed(2)} out of $${inUsd.toFixed(2)} in
+    · all-in ${allIn}% · listed fee 0.20%<br/>
+    ~${mins} min · ${selected.label} on <em>${selected.chain}</em>
+    <div class="dep">
+      Send <b>exactly ${inAmt}</b> on <b>${selected.chain}</b> to
+      <div class="addr" id="depAddr">${dep}</div>
+      <button class="btn btn2" id="copy">Copy deposit address</button>
+      <img class="qr" alt="deposit QR" src="${qr}"/>
+      <div class="status" id="st"><span class="dot"></span>waiting for deposit</div>
+    </div>`;
+  $("copy").onclick = async () => {
+    await navigator.clipboard.writeText(dep);
+    $("copy").textContent = "Copied";
+    setTimeout(()=>$("copy").textContent="Copy deposit address", 1200);
+  };
+}
+
+function startPoll(addr){
+  if(poll) clearInterval(poll);
+  const tick = async () => {
+    try{
+      const s = await fetch(API+"/v0/status?depositAddress="+encodeURIComponent(addr)).then(r=>r.json());
+      const el = $("st");
+      if(!el) return;
+      const st = s.status || s.quoteStatus || JSON.stringify(s).slice(0,80);
+      el.innerHTML = `<span class="dot"></span>${st}`;
+      if(String(st).match(/SUCCESS|REFUNDED|FAILED/i)) clearInterval(poll);
+    }catch(e){}
+  };
+  tick();
+  poll = setInterval(tick, 5000);
+}
+</script>
+</body>
+</html>
